@@ -1,6 +1,6 @@
 SPK_NAME = gonic
-SPK_VERS = 0.9.2
-SPK_REV = 3
+SPK_VERS = 0.9.5
+SPK_REV = 4
 SPK_ICON = src/gonic.png
 DSM_UI_DIR = app
 
