@@ -23,7 +23,7 @@ service_prestart ()
       . ${INST_VARIABLES}
     fi
 
-	SERVICE_OPTIONS="-music-path ${WIZARD_MUSIC_PATH} -db-path ${SYNOPKG_PKGDEST}/var/gonic.db"
+	SERVICE_OPTIONS="-music-path ${WIZARD_MUSIC_PATH} -db-path ${SYNOPKG_PKGDEST}/var/gonic.db -cache-path ${SYNOPKG_PKGDEST}/var/cache"
     # Required: start-stop-daemon do not set environment variables
     HOME=${SYNOPKG_PKGDEST}/var
     export HOME
