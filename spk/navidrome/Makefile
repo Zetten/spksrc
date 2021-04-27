@@ -1,6 +1,6 @@
 SPK_NAME = navidrome
-SPK_VERS = 0.41.1
-SPK_REV = 1
+SPK_VERS = 0.42.0
+SPK_REV = 2
 SPK_ICON = src/navidrome.png
 DSM_UI_DIR = app
 
