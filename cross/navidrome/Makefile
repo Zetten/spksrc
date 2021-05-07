@@ -1,12 +1,12 @@
 PKG_NAME = navidrome
-PKG_VERS = 0.42.0
+PKG_VERS = 0.42.1
 PKG_EXT = tar.gz
 PKG_DIST_NAME = v$(PKG_VERS).$(PKG_EXT)
 PKG_DIST_SITE = https://github.com/navidrome/$(PKG_NAME)/archive
 PKG_DIST_FILE = $(PKG_NAME)-$(PKG_VERS).$(PKG_EXT)
 EXTRACT_PATH = $(WORK_DIR)/src/github.com/$(PKG_NAME)
 PKG_DIR =  $(PKG_NAME)-$(PKG_VERS)
-PKG_GIT_SHA = 43bb075849fe0d573c20c1baddb45cabf72833b6
+PKG_GIT_SHA = 35027bbeb82e9fa11533bd50ef4e1c26501c3a56
 
 DEPENDS = native/go native/nodejs cross/taglib
 
@@ -30,8 +30,8 @@ PATH := $(WORK_DIR)/../../../native/nodejs/work-native/node/bin:$(PATH)
 GO_BUILD_ARGS = -tags=netgo
 
 GO_LDFLAGS  = 
-GO_LDFLAGS += -X github.com/navidrome/navidrome/consts.gitSha=f1bd736b20e9d985f3a224f2067ace0ca5ce7a47
-GO_LDFLAGS += -X github.com/navidrome/navidrome/consts.gitTag=0.42.0
+GO_LDFLAGS += -X github.com/navidrome/navidrome/consts.gitSha=$(PKG_GIT_SHA)
+GO_LDFLAGS += -X github.com/navidrome/navidrome/consts.gitTag=$(PKG_VERS)
 
 include ../../mk/spksrc.cross-go.mk
 
