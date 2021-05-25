@@ -1,12 +1,12 @@
 PKG_NAME = navidrome
-PKG_VERS = 0.42.1
+PKG_VERS = 0.43.0
 PKG_EXT = tar.gz
 PKG_DIST_NAME = v$(PKG_VERS).$(PKG_EXT)
 PKG_DIST_SITE = https://github.com/navidrome/$(PKG_NAME)/archive
 PKG_DIST_FILE = $(PKG_NAME)-$(PKG_VERS).$(PKG_EXT)
 EXTRACT_PATH = $(WORK_DIR)/src/github.com/$(PKG_NAME)
 PKG_DIR =  $(PKG_NAME)-$(PKG_VERS)
-PKG_GIT_SHA = 35027bbeb82e9fa11533bd50ef4e1c26501c3a56
+PKG_GIT_SHA = d9f268266c80786caf575b10ebcfbc65a1170e82
 
 DEPENDS = native/go native/nodejs cross/taglib
 
