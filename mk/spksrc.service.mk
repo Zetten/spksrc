@@ -4,7 +4,9 @@
 #   scripts/start-stop-status
 #   scripts/service-setup
 #   conf/privilege        if SERVICE_USER or DSM7
-#   conf/SPK_NAME.sc      if SERVICE_PORT
+#   conf/SPK_NAME.sc      if SERVICE_PORT and DSM<7
+#   conf/resource         if DSM7
+#   app/SPK_NAME.sc       if SERVICE_PORT and DSM7
 #   app/config            if DSM_UI_DIR
 #
 # Target are executed in the following order:
@@ -50,26 +52,23 @@ service_msg_target:
 
 pre_service_target: service_msg_target
 
-# auto uses SPK_NAME
+ifeq ($(call version_ge, ${TCVERSION}, 7.0),1)
+# always use SPK_USER on DSM >= 7, not only when SERVICE_USER is defined
+SPK_USER = $(SPK_NAME)
+else
+# SERVICE_USER=auto uses SPK_NAME
 ifeq ($(SERVICE_USER),auto)
 SPK_USER = $(SPK_NAME)
 else ifneq ($(strip $(SERVICE_USER)),)
+$(warning Only 'SERVICE_USER=auto' is compatible with DSM7)
 SPK_USER = $(SERVICE_USER)
-# else always enforce setting SPK_USER on DSM >= 7
-else ifeq ($(call version_ge, ${TCVERSION}, 7.0),1)
-SPK_USER = $(SPK_NAME)
+endif
 endif
 
 # Recommend explicit STARTABLE=no
-ifeq ($(strip $(SSS_SCRIPT)),)
-ifeq ($(strip $(SERVICE_COMMAND)),)
-ifeq ($(strip $(SPK_COMMANDS)),)
-ifeq ($(strip $(SERVICE_EXE)),)
-ifeq ($(strip $(STARTABLE)),)
-$(error Set STARTABLE=no or provide either SERVICE_COMMAND, SPK_COMMANDS or specific SSS_SCRIPT)
-endif
-endif
-endif
+ifeq ($(strip $(SSS_SCRIPT) $(SERVICE_COMMAND) $(SERVICE_EXE) $(STARTABLE)),)
+ifeq ($(strip $(SPK_COMMANDS) $(SPK_USR_LOCAL_LINKS)),)
+$(error Set STARTABLE=no or provide either SERVICE_COMMAND, SERVICE_EXE, SSS_SCRIPT, SPK_COMMANDS or SPK_USR_LOCAL_LINKS)
 endif
 endif
 
@@ -87,49 +86,61 @@ $(DSM_SCRIPTS_DIR)/service-setup:
 	@echo '  exit 1' >> $@
 	@echo 'fi' >> $@
 	@echo '' >> $@
-ifneq ($(strip $(SPK_USER)),)
+ifneq ($(strip $(SERVICE_USER)),)
+ifeq ($(call version_ge, ${TCVERSION}, 7.0),1)
+	@echo USER=\"sc-$(SPK_USER)\" >> $@
+	@echo EFF_USER=\"sc-$(SPK_USER)\" >> $@
+else
 	@echo "# Base service USER to run background process prefixed according to DSM" >> $@
 	@echo USER=\"$(SPK_USER)\" >> $@
 	@echo "PRIV_PREFIX=sc-" >> $@
 	@echo "SYNOUSER_PREFIX=svc-" >> $@
 	@echo 'if [ -n "$${SYNOPKG_DSM_VERSION_MAJOR}" ] && [ "$${SYNOPKG_DSM_VERSION_MAJOR}" -lt 6 ]; then EFF_USER="$${SYNOUSER_PREFIX}$${USER}"; else EFF_USER="$${PRIV_PREFIX}$${USER}"; fi' >> $@
 endif
+	@echo '' >> $@
+endif
 ifneq ($(strip $(SERVICE_WIZARD_GROUP)),)
 	@echo "# Group name from UI if provided" >> $@
 	@echo 'if [ -n "$${$(SERVICE_WIZARD_GROUP)}" ]; then GROUP="$${$(SERVICE_WIZARD_GROUP)}"; fi' >> $@
+	@echo '' >> $@
 endif
 ifneq ($(strip $(SERVICE_WIZARD_SHARE)),)
 	@echo "# Share download location from UI if provided" >> $@
 	@echo 'if [ -n "$${$(SERVICE_WIZARD_SHARE)}" ]; then SHARE_PATH="$${$(SERVICE_WIZARD_SHARE)}"; fi' >> $@
+	@echo '' >> $@
 endif
 ifneq ($(strip $(SERVICE_PORT)),)
 	@echo "# Service port" >> $@
 	@echo 'SERVICE_PORT="$(SERVICE_PORT)"' >> $@
+	@echo '' >> $@
 endif
 ifneq ($(STARTABLE),no)
 ifneq ($(call version_ge, ${TCVERSION}, 7.0),1)
 	@echo "# define SYNOPKG_PKGVAR for compatibility with DSM7" >> $@
 	@echo 'SYNOPKG_PKGVAR="$${SYNOPKG_PKGDEST}/var"' >> $@
+	@echo '' >> $@
 endif
 	@echo "# start-stop-status script redirect stdout/stderr to LOG_FILE" >> $@
 	@echo 'LOG_FILE="$${SYNOPKG_PKGVAR}/$${SYNOPKG_PKGNAME}.log"' >> $@
+	@echo '' >> $@
 	@echo "# Service command has to deliver its pid into PID_FILE" >> $@
 	@echo 'PID_FILE="$${SYNOPKG_PKGVAR}/$${SYNOPKG_PKGNAME}.pid"' >> $@
+	@echo '' >> $@
 endif
 ifneq ($(strip $(SERVICE_COMMAND)),)
 ifneq ($(strip $(SERVICE_SHELL)),)
 	@echo "# Service shell to run command" >> $@
 	@echo 'SERVICE_SHELL="$(SERVICE_SHELL)"' >> $@
+	@echo '' >> $@
 endif
 	@echo "# Service command to execute (either with shell or as is)" >> $@
 	@echo 'SERVICE_COMMAND="$(SERVICE_COMMAND)"' >> $@
+	@echo '' >> $@
 endif
 ifneq ($(strip $(SERVICE_EXE)),)
 ifeq ($(call version_ge, ${TCVERSION}, 7.0),1)
 	@echo "${RED}ERROR: SERVICE_EXE (start-stop-daemon) is unsupported in DSM7${NC}"
 	@echo "${GREEN}Please migrate to SERVICE_COMMAND=${NC}"
-	@echo "SVC_BACKGROUND=y"
-	@echo "SVC_WRITE_PID=y"
 	@exit 1
 endif
 	@echo "# Service command to execute with start-stop-daemon" >> $@
@@ -137,24 +148,25 @@ endif
 ifneq ($(strip $(SERVICE_OPTIONS)),)
 	@echo 'SERVICE_OPTIONS="$(SERVICE_OPTIONS)"' >> $@
 endif
+	@echo '' >> $@
+endif
+ifeq ($(strip $(USE_ALTERNATE_TMPDIR)),1)
+ifeq ($(call version_ge, ${TCVERSION}, 7.0),1)
+	@cat $(SPKSRC_MK)spksrc.service.use_alternate_tmpdir.dsm7 >> $@
+else
+	@cat $(SPKSRC_MK)spksrc.service.use_alternate_tmpdir >> $@
+endif
 endif
 ifneq ($(strip $(SERVICE_SETUP)),)
 	@cat $(CURDIR)/$(SERVICE_SETUP) >> $@
 endif
 
-ifneq ($(call version_ge, ${TCVERSION}, 7.0),1)
-ifneq ($(strip $(SPK_COMMANDS) $(SPK_LINKS)),)
-	@echo "# List of commands to create links for" >> $@
-	@echo "SPK_COMMANDS=\"${SPK_COMMANDS}\"" >> $@
-	@echo "SPK_LINKS=\"${SPK_LINKS}\"" >> $@
-	@cat $(SPKSRC_MK)spksrc.service.create_links >> $@
-endif
-else
-ifneq ($(strip $(SPK_LINKS)),)
-	@echo "${RED}ERROR: SPK_LINKS is unsupported in DSM7${NC}"
-	@echo "${GREEN}Please migrate to SPK_USR_LOCAL_LINKS=${NC}"
-	@exit 1
-endif
+# Define resources for
+# - firewall rules/port definitions (DSM >= 6.0-5936)
+# - usr local links (DSM >= 6.0-5941)
+# for DSM<6.0 link creation is provided by spksrc.service.create_links
+# and other facilities are defined in the generic installer (spksrc.service.installer.dsm5)
+ifeq ($(call version_ge, ${TCVERSION}, 6.0),1)
 $(DSM_CONF_DIR)/resource:
 	$(create_target_dir)
 	@echo '{}' > $@
@@ -178,25 +190,39 @@ ifneq ($(strip $(SPK_USR_LOCAL_LINKS)),)
 endif
 ifneq ($(strip $(SERVICE_WIZARD_SHARE)),)
 # e.g. SERVICE_WIZARD_SHARE=wizard_download_dir
+ifeq ($(call version_ge, ${TCVERSION}, 7.0),1)
 	@jq --arg share "{{${SERVICE_WIZARD_SHARE}}}" --arg user sc-${SPK_USER} \
 		'."data-share" = {"shares": [{"name": $$share, "permission":{"rw":[$$user]}} ] }' $@ 1<>$@
 endif
+endif
 SERVICE_FILES += $(DSM_CONF_DIR)/resource
+ifneq ($(findstring conf,$(SPK_CONTENT)),conf)
+SPK_CONTENT += conf
+endif
+
+# Less than DSM 6.0
+else
+ifneq ($(strip $(SPK_COMMANDS) $(SPK_USR_LOCAL_LINKS)),)
+	@echo "# List of commands to create links for" >> $@
+	@echo "SPK_COMMANDS=\"${SPK_COMMANDS}\"" >> $@
+	@echo "SPK_USR_LOCAL_LINKS=\"${SPK_USR_LOCAL_LINKS}\"" >> $@
+	@cat $(SPKSRC_MK)spksrc.service.create_links >> $@
+endif
 endif
 
 
-DSM_SCRIPTS_ += service-setup
+DSM_SCRIPT_FILES += service-setup
 SERVICE_FILES += $(DSM_SCRIPTS_DIR)/service-setup
 
 
 # Control use of generic installer
 ifeq ($(strip $(INSTALLER_SCRIPT)),)
-DSM_SCRIPTS_ += installer
+DSM_SCRIPT_FILES += installer
 ifeq ($(call version_ge, ${TCVERSION}, 7.0),1)
 $(DSM_SCRIPTS_DIR)/installer: $(SPKSRC_MK)spksrc.service.installer.dsm7
 	@$(dsm_script_copy)
 else ifeq ($(call version_ge, ${TCVERSION}, 6.0),1)
-$(DSM_SCRIPTS_DIR)/installer: $(SPKSRC_MK)spksrc.service.installer
+$(DSM_SCRIPTS_DIR)/installer: $(SPKSRC_MK)spksrc.service.installer.dsm6
 	@$(dsm_script_copy)
 else
 $(DSM_SCRIPTS_DIR)/installer: $(SPKSRC_MK)spksrc.service.installer.dsm5
@@ -207,7 +233,7 @@ endif
 
 # Control use of generic start-stop-status scripts
 ifeq ($(strip $(SSS_SCRIPT)),)
-DSM_SCRIPTS_ += start-stop-status
+DSM_SCRIPT_FILES += start-stop-status
 ifeq ($(STARTABLE),no)
 $(DSM_SCRIPTS_DIR)/start-stop-status: $(SPKSRC_MK)spksrc.service.non-startable
 	@$(dsm_script_copy)
@@ -252,7 +278,7 @@ SPK_CONTENT += conf
 endif
 
 # DSM <= 6 and SERVICE_USER defined
-else ifneq ($(strip $(SPK_USER)),)
+else ifneq ($(strip $(SERVICE_USER)),)
 ifeq ($(strip $(SERVICE_EXE)),)
 $(DSM_CONF_DIR)/privilege: $(SPKSRC_MK)spksrc.service.privilege-installasroot
 	@$(dsm_script_copy)
