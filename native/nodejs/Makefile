@@ -1,6 +1,6 @@
 PKG_NAME = nodejs
-# Latest Current Version: 14.16.1
-PKG_VERS = 14.16.1
+# Latest Current Version: 16.4.2
+PKG_VERS = 16.4.2
 PKG_EXT = tar.xz
 PKG_DIST_NAME = node-v$(PKG_VERS)-linux-x64.$(PKG_EXT)
 PKG_DIST_SITE = https://nodejs.org/dist/v$(PKG_VERS)
